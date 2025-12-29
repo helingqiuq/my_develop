@@ -1,0 +1,101 @@
+{
+  "app": {
+    "name": "user",
+    "server_name": "user_server"
+  },
+  "service":{
+    "name": "user_service",
+    "target": "0.0.0.0:50072"
+  },
+  "genuid": {
+    "redis_host": "192.168.88.102",
+    "port": 6379,
+    "authkey": "redis_pass",
+    "user_id_genkey": "user_id_genkey"
+  },
+  "http_service": {
+    "name": "user_http_service",
+    "host": "127.0.0.1",
+    "port": 5201,
+    "parallel": 1
+  },
+  "client": {
+    "self": {
+      "target":"127.0.0.1:50072"
+    }
+  },
+  "log": {
+    "terminal":1,
+    "level": "trace"
+  },
+  "sign_key": "test_sign_key",
+  "schema_base_name": "user",
+  "table_base_name": "user",
+  "record_base_name": "record",
+  "dbconf": [
+    {
+      "id":0,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "user_write",
+      "passwd": "user_write",
+      "schema": "user_0"
+    },
+    {
+      "id":1,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "user_write",
+      "passwd": "user_write",
+      "schema": "user_1"
+    },
+    {
+      "id":2,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "user_write",
+      "passwd": "user_write",
+      "schema": "user_2"
+    },
+    {
+      "id":3,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "user_write",
+      "passwd": "user_write",
+      "schema": "user_3"
+    },
+    {
+      "id":4,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "user_write",
+      "passwd": "user_write",
+      "schema": "user_4"
+    },
+    {
+      "id":5,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "user_write",
+      "passwd": "user_write",
+      "schema": "user_5"
+    },
+    {
+      "id":6,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "user_write",
+      "passwd": "user_write",
+      "schema": "user_6"
+    },
+    {
+      "id":7,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "user_write",
+      "passwd": "user_write",
+      "schema": "user_7"
+    }
+  ]
+}

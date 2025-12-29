@@ -1,0 +1,144 @@
+syntax="proto3";
+package miku.user;
+
+service interface {
+  // 用户创建
+  rpc Create (CreateReq) returns (CreateResp) {}
+
+  // 用户更新
+  rpc Update (UpdateReq) returns (UpdateResp) {}
+
+  // 用户冻结
+  rpc Freeze (FreezeReq) returns (FreezeResp) {}
+
+  // 用户解冻结
+  rpc Unfreeze (UnfreezeReq) returns (UnfreezeResp) {}
+
+  // 用户销户
+  rpc Cancel (CancelReq) returns (CancelResp) {}
+
+  // 用户查询
+  rpc Find (FindReq) returns (FindResp) {}
+}
+
+enum ErrNo {
+  E_SUCCESS         = 0;     // 成功
+  E_ERROR           = 1;     // 未知错误
+  E_ARGS            = 100;   // 参数错误
+  E_DATA_INVALID    = 1000;  // 数据失效，一般由于数据被非法篡改
+  E_EXISTS          = 1001;  // 操作已完成，如创建券已创建完成，常见的重试成功状态
+  E_STATUS          = 1002;  // 业务状态不正确
+  E_EXPIRE          = 1003;  // 操作已过期的数据
+  E_ALREADY         = 1004;  // 操作疑似已完成，即已达到操作完成的状态
+  E_NOEXISTS        = 1005;  // 操作数据不存在
+}
+
+enum UserStatus {
+  US_COMMON         = 0;  // 普通状态
+  US_FREEZE         = 1;  // 冻结状态
+  US_CANCEL         = 2;  // 销户状态
+  US_ABNORMAL       = 3;  // 异常数据
+  // ...
+}
+
+enum UserType {
+  UT_COMMON         = 0;  // 普通用户
+  // ...
+}
+
+enum UserOpType {
+  UOP_CREATE        = 0;  // 创建
+  UOP_UPDATE        = 1;  // 更新
+  UOP_FREEZE        = 2;  // 冻结
+  UOP_UNFREEZE      = 3;  // 冻结
+  UOP_CANCEL        = 4;  // 销户
+  UOP_ABNORMAL      = 5;  // 异常
+}
+
+message AttrParam {
+  string k = 1;
+  string v = 2;
+  int32 op = 3;  // 0 增加 非0减少
+}
+
+message UserInfo {
+  uint64 user_id            = 1;  // 用户id
+  uint32 src_id             = 2;  // 来源id
+  uint32 user_type          = 3;  // 用户类型 0普通用户
+  uint32 status             = 4;  // 用户状态，见UserStatus
+  uint64 created            = 5;  // 创建时间
+
+  repeated AttrParam attrs  = 6;  // op没有意义
+}
+
+
+message CreateReq {
+  uint64 user_id            = 1;  // 用户id，指定uid创建，会挤占uid序列
+  uint32 src_id             = 2;  // 来源id
+  uint32 user_type          = 3;  // 用户类型 0普通用户
+  uint64 operator_id        = 4;  // 操作员id
+  bool gen_user_id          = 5;  // 为true时，如果user_id为0，会自动生成一个
+
+  repeated AttrParam attrs  = 6;
+}
+
+message CreateResp {
+  ErrNo ret = 1;
+  string msg = 2;
+
+  uint64 user_id = 3;
+  repeated AttrParam attr_param = 4;
+}
+
+message UpdateReq {
+  uint64 user_id                      = 1;  // 用户id
+  uint64 operator_id                  = 2;  // 操作员id
+
+  repeated AttrParam attrs            = 3;
+}
+
+message UpdateResp {
+  ErrNo ret = 1;
+  string msg = 2;
+}
+
+message FreezeReq {
+  uint64 user_id           = 1;  // 用户id
+  uint64 operator_id       = 2;  // 操作员id
+}
+
+message FreezeResp {
+  ErrNo ret = 1;
+  string msg = 2;
+}
+
+message UnfreezeReq {
+  uint64 user_id           = 1;  // 用户id
+  uint64 operator_id       = 2;  // 操作员id
+}
+
+message UnfreezeResp {
+  ErrNo ret = 1;
+  string msg = 2;
+}
+
+message  CancelReq {
+  uint64 user_id           = 1;  // 要核销的券号
+  uint64 operator_id       = 2;  // 校验者id
+}
+
+message CancelResp {
+  ErrNo ret = 1;
+  string msg = 2;
+}
+
+message  FindReq {
+  uint64 user_id           = 1;  // 要核销的券号
+}
+
+message FindResp {
+  ErrNo ret = 1;
+  string msg = 2;
+
+  UserInfo user_info = 3;
+}

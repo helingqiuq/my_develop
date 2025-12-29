@@ -1,0 +1,95 @@
+{
+  "app": {
+    "name": "login",
+    "server_name": "login_server"
+  },
+  "service":{
+    "name": "login_service",
+    "target": "0.0.0.0:50082"
+  },
+  "http_service": {
+    "name": "login_http_service",
+    "host": "127.0.0.1",
+    "port": 5211,
+    "parallel": 1
+  },
+  "client": {
+    "self": {
+      "target":"127.0.0.1:50082"
+    }
+  },
+  "log": {
+    "terminal":1,
+    "level": "trace"
+  },
+  "sign_key": "test_sign_key",
+  "schema_base_name": "login",
+  "table_base_name": "login",
+  "record_base_name": "record",
+  "dbconf": [
+    {
+      "id":0,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "login_write",
+      "passwd": "login_write",
+      "schema": "login_0"
+    },
+    {
+      "id":1,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "login_write",
+      "passwd": "login_write",
+      "schema": "login_1"
+    },
+    {
+      "id":2,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "login_write",
+      "passwd": "login_write",
+      "schema": "login_2"
+    },
+    {
+      "id":3,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "login_write",
+      "passwd": "login_write",
+      "schema": "login_3"
+    },
+    {
+      "id":4,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "login_write",
+      "passwd": "login_write",
+      "schema": "login_4"
+    },
+    {
+      "id":5,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "login_write",
+      "passwd": "login_write",
+      "schema": "login_5"
+    },
+    {
+      "id":6,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "login_write",
+      "passwd": "login_write",
+      "schema": "login_6"
+    },
+    {
+      "id":7,
+      "host": "192.168.88.101",
+      "port": 3306,
+      "user": "login_write",
+      "passwd": "login_write",
+      "schema": "login_7"
+    }
+  ]
+}

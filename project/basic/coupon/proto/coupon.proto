@@ -1,0 +1,212 @@
+syntax="proto3";
+package miku.coupon;
+
+service interface {
+  // 创建券，刚创建的券是不可用的，只有启用后才可以使用。但需要绑定活动id等属性
+  rpc Create (CreateReq) returns (CreateResp) {}
+
+  // 券启用，需要绑定启用uid，设置有效期等，更新状态为券启用
+  rpc Invocation (InvocationReq) returns (InvocationResp) {}
+
+  // 券核销，根据券内容做各种处理，如果券不可再用，则更新状态为核销完成
+  rpc Exchange (ExchangeReq) returns (ExchangeResp) {}
+
+  // 券作废，可作废未启用的券，但可支持强制作废已启用的券
+  rpc Cancel (CancelReq) returns (CancelResp) {}
+
+  // 券过期，对已启用且过期的券操作
+  rpc Expire (ExpireReq) returns (ExpireResp) {}
+
+  // 查询
+  rpc Find (FindReq) returns (FindResp) {}
+}
+
+enum ErrNo {
+  E_SUCCESS         = 0;     // 成功
+  E_ERROR           = 1;     // 未知错误
+  E_ARGS            = 100;   // 参数错误
+  E_DATA_INVALID    = 1000;  // 数据失效，一般由于数据被非法篡改
+  E_EXISTS          = 1001;  // 操作已完成，如创建券已创建完成，常见的重试成功状态
+  E_STATUS          = 1002;  // 业务状态不正确
+  E_EXPIRE          = 1003;  // 操作已过期的数据
+  E_ALREADY         = 1004;  // 操作疑似已完成，即已达到操作完成的状态
+  E_NOEXISTS        = 1005;  // 操作数据不存在
+  E_NOTINTIME       = 1006;  // 不在使用时段内
+}
+
+enum CouponStatus {
+  CS_INIT           = 0;  // 初始态，创建后的状态
+  CS_INVOCATION     = 1;  // 启动态，已归属某用户
+  CS_EXCHANGED      = 2;  // 核销完成
+  CS_CANCEL         = 3;  // 作废
+  CS_EXPIRE         = 4;  // 过期
+  CS_ABNORMAL       = 5;  // 异常数据
+}
+
+enum CouponType {
+  CT_INIT           = 0;  // 初始化，无效值
+  CT_NOTHRESHOLD    = 1;  // 无门槛抵扣券
+}
+
+enum CouponOpType {
+  COP_CREATE        = 0;  // 创建
+  COP_INVOCATION    = 1;  // 启用
+  COP_EXCHANGE      = 2;  // 核销
+  COP_CANCEL        = 3;  // 作废
+  COP_EXPIRE        = 4;  // 过期
+  COP_ABNORMAL      = 5;  // 异常
+}
+
+message AttrParam {
+  string k = 1;
+  string v = 2;
+}
+
+
+message CouponInfo {
+  int64 id                  =  1;
+  string coupon_no          =  2;
+  string activity_id        =  3;
+  string activity_cycle     =  4;
+  uint32 type               =  5;
+  uint32 status             =  6;
+  uint64 user_id            =  7;
+  uint64 created            =  8;
+  uint64 updated            =  9;
+  uint64 started            = 10;
+  uint64 expired            = 11;
+  uint64 redemption         = 12;
+  uint64 cancel             = 13;
+
+  repeated AttrParam attrs  = 14;
+}
+
+message CreateReq {
+  message NoThresholdInfo {  // 无门槛抵扣券参数
+    uint32 amount = 1;  // 抵扣金额
+  }
+  // ... 其它类型券的配制
+
+  message CouponConfig {  // 券配制
+    NoThresholdInfo no_threshold_info = 1;  // 无门槛抵扣券配制
+    // ... 其它类型券的配制
+  }
+
+  CouponType      type              = 1;  // 券类型
+  string          coupon_no         = 2;  // 券号
+  CouponConfig    coupon_conf       = 3;  // 券配制
+  string          activity_id       = 4;  // 券所属的活动id
+  string          activity_cycle    = 5;  // 券所属的活动周期
+  int64           expire            = 6;  // 过期时间，绝对时间
+  uint64          operator_id       = 7;  // 操作员id
+
+  repeated AttrParam attrs          = 8;  // 其它一些附加属性
+}
+
+message CreateResp {
+  ErrNo ret = 1;
+  string msg = 2;
+}
+
+
+message InvocationReq {
+  string             coupon_no         = 1;  // 要启用的券号
+  uint64             user_id           = 2;  // 券的归属者
+  uint64             operator_id       = 3;  // 操作员id
+  string             activity_id       = 4;  // 券所属的活动id
+  string             activity_cycle    = 5;  // 券所属的活动周期，设置了就校验
+  uint64             start_ts          = 6;  // 开始时间，0则默认当前时间，必需创建时的有效期内才能设置
+  uint64             end_ts            = 7;  // 结束时间，0则默认创建时的时间，必需创建时的有效期内才能设置
+
+  repeated AttrParam attrs             = 8;  // 其它一些附加属性
+}
+
+message InvocationResp {
+  ErrNo ret = 1;
+  string msg = 2;
+
+  // TODO
+}
+
+
+message ExchangeReq {
+  message NoThresholdInfo {  // 无门槛抵扣券参数
+    // 该类型直接全额抵扣，无配制明细
+  }
+
+  message ExchangeConfig {  // 券配制
+    NoThresholdInfo no_threshold_info = 1;  // 无门槛抵扣券配制
+    // ... 其它类型券的配制
+  }
+
+
+  string             coupon_no          = 1;  // 要核销的券号
+  string             activity_id        = 2;  // 券所属的活动id，必需校验
+  string             activity_cycle     = 3;  // 券所属的活动周期，设置了就校验
+  uint64             operator_id        = 4;  // 核销者id
+  int64              amount             = 5;  // 核销金额，不是所有券都会用到
+  ExchangeConfig     exchange_conf      = 6;  // 不同券的核销明细配制
+  string             trans_order_no     = 7;  // 核销对应的交易订单
+  uint32             trans_order_amount = 8;  // 核销对应的交易订单金额（分）
+
+  repeated AttrParam attrs              = 9;  // 其它一些附加属性
+}
+
+message ExchangeResp {
+  message NoThresholdInfo {  // 无门槛抵扣券返回
+    uint32 amount             = 1;  // 抵扣金额
+    uint64 exchange_timestamp = 2;  // 核销时间
+    uint64 operator_id        = 3;  // 核销人
+  }
+
+  message ExchangeReturn {  // 券配制
+    NoThresholdInfo no_threshold_info = 1;  // 无门槛抵扣券配制
+    // ... 其它类型券的配制
+  }
+
+  ErrNo ret = 1;
+  string msg = 2;
+
+  uint32 amount = 3;  // 抵扣金额
+  ExchangeReturn exchange_return = 4;  // 一些需要返回的数据
+}
+
+
+message  CancelReq {
+  string          coupon_no         = 1;  // 要核销的券号
+  uint64          operator_id       = 2;  // 校验者id
+  bool            force             = 3;  // 强制废弃，可废弃启用中的券
+
+  repeated AttrParam attrs          = 4;  // 其它一些附加属性
+}
+
+message CancelResp {
+  ErrNo ret = 1;
+  string msg = 2;
+
+  uint64 cancel_timestamp = 3;  // 作废时间
+}
+
+
+message ExpireReq {
+  string          coupon_no         = 1;  // 要核销的券号
+  uint64          operator_id       = 2;  // 校验者id
+
+  repeated AttrParam attrs          = 3;  // 其它一些附加属性
+}
+
+message ExpireResp {
+  ErrNo ret = 1;
+  string msg = 2;
+}
+
+message FindReq {
+  string          coupon_no         = 1;  // 票号
+}
+
+message FindResp {
+  ErrNo ret = 1;
+  string msg = 2;
+
+  CouponInfo coupon_info = 3;
+}

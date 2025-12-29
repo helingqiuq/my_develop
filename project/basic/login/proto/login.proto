@@ -1,0 +1,165 @@
+syntax="proto3";
+package miku.login;
+
+service interface {
+  // 登陆创建
+  rpc Register (RegisterReq) returns (RegisterResp) {}
+
+  // 登陆
+  rpc Login (LoginReq) returns (LoginResp) {}
+
+  // 登陆信息更新
+  rpc Update (UpdateReq) returns (UpdateResp) {}
+
+  // 登陆信息冻结
+  rpc Freeze (FreezeReq) returns (FreezeResp) {}
+
+  // 登陆信息解冻结
+  rpc Unfreeze (UnfreezeReq) returns (UnfreezeResp) {}
+
+  // 登陆信息销户
+  rpc Cancel (CancelReq) returns (CancelResp) {}
+
+  // 登陆数据查询
+  rpc Find (FindReq) returns (FindResp) {}
+}
+
+enum ErrNo {
+  E_SUCCESS         = 0;     // 成功
+  E_ERROR           = 1;     // 未知错误
+  E_ARGS            = 100;   // 参数错误
+  E_DATA_INVALID    = 1000;  // 数据失效，一般由于数据被非法篡改
+  E_EXISTS          = 1001;  // 操作已完成，如创建券已创建完成，常见的重试成功状态
+  E_STATUS          = 1002;  // 业务状态不正确
+  E_EXPIRE          = 1003;  // 操作已过期的数据
+  E_ALREADY         = 1004;  // 操作疑似已完成，即已达到操作完成的状态
+  E_NOEXISTS        = 1005;  // 操作数据不存在
+  E_NOAUTH          = 1006;  // 鉴权失败
+}
+
+enum LoginStatus {
+  LS_COMMON         = 0;  // 普通状态
+  LS_FREEZE         = 1;  // 冻结状态
+  LS_CANCEL         = 2;  // 销户状态
+  LS_ABNORMAL       = 3;  // 异常数据
+  // ...
+}
+
+enum LoginType {
+  LT_COMMON         = 0;  // 普通方式，需要验证auth_secret
+  LT_ALREADY        = 1;  // 已通过三方授权，直接视为通过登陆
+  // ...
+}
+
+enum LoginOpType {
+  UOP_CREATE        = 0;  // 创建
+  UOP_UPDATE        = 1;  // 更新
+  UOP_FREEZE        = 2;  // 冻结
+  UOP_UNFREEZE      = 3;  // 冻结
+  UOP_CANCEL        = 4;  // 销户
+  UOP_ABNORMAL      = 5;  // 异常
+}
+
+message AttrParam {
+  string k = 1;
+  string v = 2;
+  int32 op = 3;  // 0 增加 非0减少
+}
+
+message LoginInfo {
+  string appid              = 1;  // 账户所属appid
+  LoginType type            = 2;
+  string auth_key           = 3;  // 登陆验证的key值
+  uint32 status             = 4;  // 账户状态，0正常 1冻结 2销户 3异常数据
+  uint64 user_id            = 5;  // 用户id
+  uint64 created            = 6;  // 创建时间
+
+  repeated AttrParam attrs  = 7;  // op没有意义
+  repeated AttrParam params = 8;  // op没有意义
+}
+
+message RegisterReq {
+  string appid              = 1;  // 查询账号所属的appid
+  string auth_key           = 2;  // 登陆验证的key值
+  LoginType type            = 3;  // 验证方式
+  uint64 user_id            = 4;  // 登录绑定的user_id
+
+  repeated AttrParam attrs  = 5;  // 主要属性
+  repeated AttrParam params = 6;  // 其它属性，非敏感，仅保存.op值没意义
+}
+
+message RegisterResp {
+  ErrNo ret = 1;
+  string msg = 2;
+
+  repeated AttrParam attr_param = 3;
+}
+
+message LoginReq {
+  string appid                   = 1;  // 查询账号所属的appid
+  string auth_key                = 2;  // 登陆验证的key值
+
+  repeated AttrParam attrs       = 3;  // 登陆参数
+}
+
+message LoginResp {
+  ErrNo ret = 1;
+  string msg = 2;
+
+  uint64 user_id = 3;
+}
+
+message UpdateReq {
+  string appid             = 1;  // 查询账号所属的appid
+  string auth_key          = 2;  // 登陆验证的key值
+  uint64 user_id           = 3;  // 需要改绑uid时设置此值，否则设置0
+
+  repeated AttrParam attrs = 4;  // 需要修改的属性
+}
+
+message UpdateResp {
+  ErrNo ret = 1;
+  string msg = 2;
+}
+
+message FreezeReq {
+  string appid             = 1;  // 查询账号所属的appid
+  string auth_key          = 2;  // 登陆验证的key值
+}
+
+message FreezeResp {
+  ErrNo ret = 1;
+  string msg = 2;
+}
+
+message UnfreezeReq {
+  string appid             = 1;  // 查询账号所属的appid
+  string auth_key          = 2;  // 登陆验证的key值
+}
+
+message UnfreezeResp {
+  ErrNo ret = 1;
+  string msg = 2;
+}
+
+message  CancelReq {
+  string appid             = 1;  // 查询账号所属的appid
+  string auth_key          = 2;  // 登陆验证的key值
+}
+
+message CancelResp {
+  ErrNo ret = 1;
+  string msg = 2;
+}
+
+message  FindReq {
+  string appid             = 1;  // 查询账号所属的appid
+  string auth_key          = 2;  // 登陆验证的key值
+}
+
+message FindResp {
+  ErrNo ret = 1;
+  string msg = 2;
+
+  LoginInfo login_info = 3;
+}
