@@ -10,21 +10,17 @@
 #include "middle/auto_rpc_log.h"
 
 namespace miku::http_service {
-DECLARE_MEMBER_CHECK(ret)
-DECLARE_MEMBER_CHECK(status)
-DECLARE_MEMBER_CHECK(code)
-
 template <typename T>
 void
 http_call_failed_reply(struct evhttp_request *req,
                        const std::string &e_msg,
                        T *rsp) {
   struct evbuffer *response_buffer = evbuffer_new();
-  if constexpr (CheckHas_ret<T>::value) {
+  if constexpr (miku::client::CheckHas_ret<T>::value) {
     rsp->set_ret(static_cast<decltype(rsp->ret())>(-1));
-  } else if constexpr (CheckHas_status<T>::value) {
+  } else if constexpr (miku::client::CheckHas_status<T>::value) {
     rsp->set_status(static_cast<decltype(rsp->status())>(501));
-  } else if constexpr (CheckHas_code<T>::value) {
+  } else if constexpr (miku::client::CheckHas_code<T>::value) {
     rsp->set_code(static_cast<decltype(rsp->code())>(501));
   }
 

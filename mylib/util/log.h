@@ -71,7 +71,7 @@ class Log {
  private:
   int32_t OpenFile_(const std::string &fname) const;
   bool MakeDirP_(const std::string &fname) const;
-  int64_t UpdateFileSize_(int32_t fd) const;
+  int64_t QueryFileSize_(int32_t fd) const;
   bool LoadFileLoopInfo_();  // 读取cur_file_loop_ 当前循环到的位置
   bool MoveNextFile_();  // 写下一个循环文件
 

@@ -1,75 +1,118 @@
 #pragma once
 
-#include <vector>
-#include <string>
-#include <memory>
-#include <random>
-
-#include "grpcpp/grpcpp.h"
+#include "grpc_service_help.h"
 #include "util/log.h"
+#include "util/statistics.h"
+#include "util/time_cost.h"
+#include "util/util.h"
 
-
-namespace miku {
-
-struct ClientConfig {
-  std::string sname;
-  std::vector<std::string> saddrs;
-};
-
-template <typename T>
-class ClientProxy {
- public:
-  ClientProxy(const ClientConfig &cconf,
-              std::shared_ptr<grpc::ChannelCredentials> c = grpc::InsecureChannelCredentials()) {
-    // 后续考虑通过name通过名字服务获取list
-    for (const auto &a : cconf.saddrs) {
-      std::shared_ptr<grpc::Channel> channel(
-          grpc::CreateChannel(a, c));
-      channels_.push_back(channel);
-      stubs_.emplace_back(T::NewStub(channel));
-    }
-
-    n_stub_ = channels_.size();
-  }
-  ~ClientProxy() = default;
-  const std::unique_ptr<typename T::Stub> &operator->() const {
-    // TODO 这里做选择可以加上权重因素
-    std::random_device rd;
-    return stubs_[rd() % n_stub_];
-  }
-
- private:
-  std::vector<std::unique_ptr<typename T::Stub>> stubs_;  // 这东西可能会使用名字服务更新，后续考虑双buf机制
-  std::vector<std::shared_ptr<grpc::Channel>> channels_;  // 这东西可能会使用名字服务更新，后续考虑双buf机制
-  uint32_t n_stub_;
-};
-
-}  // namespace miku
-
+// client定义
 #ifndef CLIENT_HELP_GRPC_CLIENT_FUN_DECLARE
 # define CLIENT_HELP_GRPC_CLIENT_FUN_DECLARE(CN, PN, SV, N, n)            \
   bool N(const PN::N##Req &req, PN::N##Resp *resp);                       \
-  std::unique_ptr<grpc::ClientAsyncResponseReader<PN::N##Resp>>           \
-  Async##N(const PN::N##Req &req);
+  miku::grpc_service_help::AsyncResultsWaitable                           \
+  Coro##N(const PN::N##Req &req, PN::N##Resp *resp,                       \
+          ::grpc::CompletionQueue *cq,                                    \
+          miku::coro_task::CoroTaskHelp *task_help);
 #endif
 
+namespace miku::client {
+DECLARE_MEMBER_CHECK(ret)
+DECLARE_MEMBER_CHECK(status)
+DECLARE_MEMBER_CHECK(code)
+
+template<typename T>
+bool CheckReplySuccess(const T &rsp) {
+  if constexpr (miku::client::CheckHas_ret<T>::value) {
+    return rsp.ret() == 0;
+  } else if constexpr (miku::client::CheckHas_status<T>::value) {
+    return rsp.status() == 0;
+  } else if constexpr (miku::client::CheckHas_code<T>::value) {
+    return rsp.code() == 0;
+  } else {
+    static_assert(std::false_type::value, "unknow type");
+  }
+}
+
+template<typename T>
+class AutoRpcStatistics {
+ public:
+  AutoRpcStatistics(const std::string &name,
+                    const T &rsp,
+                    Statistics *stat = nullptr)
+        : name_(name)
+        , rsp_(rsp)
+        , pstat_(stat)
+        , success_(true) {
+  }
+
+  ~AutoRpcStatistics() {
+    if (pstat_ == nullptr) {
+      return;
+    }
+    if (!success_) {
+      pstat_->Add(name_, "failed");
+    } else {
+      if (CheckReplySuccess(rsp_)) {
+        pstat_->Add(name_, "success");
+      } else {
+        pstat_->Add(name_, "error");
+      }
+    }
+
+    pstat_->Add(name_, "count");
+    pstat_->Add(name_, "cost", ts.TotalCost(), Statistics::AttrValue::AVE);
+  }
+
+  void SetCallSuccess(bool succ) {
+    success_ = succ;
+  }
+
+ private:
+  const std::string name_;
+  const T &rsp_;
+  Statistics *pstat_;
+  bool success_;
+  TimeCost ts;
+};
+
+
+}
 
 #ifndef CLIENT_HELP_GRPC_CLIENT_FUN_IMPL
 # define CLIENT_HELP_GRPC_CLIENT_FUN_IMPL(CN, PN, SV, N, n)               \
 bool CN##Client::N(const PN::N##Req &req, PN::N##Resp *resp) {            \
+  bool ret = true;                                                        \
   grpc::ClientContext context;                                            \
-  grpc::Status status = proxy_->N(&context, req, resp);                   \
-  if (status.ok()) {                                                      \
-    return true;                                                          \
+  if (pstat_ == nullptr) {                                                \
+    grpc::Status status = proxy_->N(&context, req, resp);                 \
+    if (!status.ok()) {                                                   \
+      LogWarn(status.error_code() << ": " << status.error_message());     \
+      ret = false;                                                        \
+    }                                                                     \
   } else {                                                                \
-    LogWarn(status.error_code() << ": " << status.error_message());       \
-    return false;                                                         \
+    miku::client::AutoRpcStatistics cs(#CN "Client::" #N, *resp, pstat_); \
+    TimeCost ts;                                                          \
+    grpc::Status status = proxy_->N(&context, req, resp);                 \
+    if (!status.ok()) {                                                   \
+      LogWarn(status.error_code() << ": " << status.error_message());     \
+      cs.SetCallSuccess(false);                                           \
+      ret = false;                                                        \
+    }                                                                     \
   }                                                                       \
+                                                                          \
+  return ret;                                                             \
 }                                                                         \
-std::unique_ptr<grpc::ClientAsyncResponseReader<PN::N##Resp>>             \
-CN##Client::Async##N(const PN::N##Req &req) {                             \
-  grpc::ClientContext context;                                            \
-  return proxy_->Async##N(&context, req, nullptr);                        \
+miku::grpc_service_help::AsyncResultsWaitable                             \
+CN##Client::Coro##N(const PN::N##Req &req, PN::N##Resp *resp,             \
+                    ::grpc::CompletionQueue *cq,                          \
+                    miku::coro_task::CoroTaskHelp *task_help) {           \
+  auto *p = new miku::grpc_service_help::CoroCliCallContext<              \
+    PN::SV, PN::N##Req, PN::N##Resp>(                                     \
+        &proxy_, cq, req, resp,                                           \
+        &PN::SV::Stub::Async##N);                                         \
+  auto h = p->Proceed();                                                  \
+  return {task_help, {h.h_.address()}};                                   \
 }
 #endif
 
@@ -78,15 +121,17 @@ CN##Client::Async##N(const PN::N##Req &req) {                             \
 namespace miku::client_service {                                          \
 class CN##Client final {                                                  \
  private:                                                                 \
-  CN##Client(const miku::ClientConfig &conf);                             \
+  CN##Client(const miku::ClientConfig &conf, Statistics *stat = nullptr); \
   CN##Client(const CN##Client &) = delete;                                \
   CN##Client &operator=(const CN##Client &) = delete;                     \
   miku::ClientProxy<PN::SV> proxy_;                                       \
+  Statistics *pstat_;                                                     \
  public:                                                                  \
   ~CN##Client() = default;                                                \
   M(CLIENT_HELP_GRPC_CLIENT_FUN_DECLARE, CN, PN, SV)                      \
   static std::shared_ptr<CN##Client> client_;                             \
-  static void Initialize(const miku::ClientConfig &conf);                 \
+  static void Initialize(const miku::ClientConfig &conf,                  \
+                         Statistics *stat = nullptr);                     \
 };                                                                        \
 }
 #endif
@@ -94,10 +139,12 @@ class CN##Client final {                                                  \
 #ifndef CLIENT_HELP_GRPC_CLIENT_IMPL
 # define CLIENT_HELP_GRPC_CLIENT_IMPL(CN, PN, SV, M)                      \
 namespace miku::client_service {                                          \
-CN##Client::CN##Client(const miku::ClientConfig &conf) : proxy_(conf) {}  \
+CN##Client::CN##Client(const miku::ClientConfig &conf, Statistics *stat)  \
+    : proxy_(conf), pstat_(stat) {}                                       \
 std::shared_ptr<CN##Client> CN##Client::client_ = nullptr;                \
-void CN##Client::Initialize(const miku::ClientConfig &conf) {             \
-  client_ = decltype(client_)(new CN##Client(conf));                      \
+void CN##Client::Initialize(const miku::ClientConfig &conf,               \
+                            Statistics *stat) {                           \
+  client_ = decltype(client_)(new CN##Client(conf, stat));                \
 }                                                                         \
 M(CLIENT_HELP_GRPC_CLIENT_FUN_IMPL, CN, PN, SV)                           \
 }
@@ -113,3 +160,4 @@ M(CLIENT_HELP_GRPC_CLIENT_FUN_IMPL, CN, PN, SV)                           \
   miku::client_service::CN##Client::client_
 #endif
 
+//  =========================== end ========================

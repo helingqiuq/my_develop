@@ -76,6 +76,10 @@ bool is_number(const std::string &s,
                bool allow_neg = false,   // 允许负数
                bool allow_dec = false);  // 允许小数
 
+std::string url_encode(const std::string &value);
+std::string url_decode(const std::string &encoded);
+std::map<std::string, std::string> parse_uri_query(const std::string &uri);
+
 std::string json_to_string(const Json::Value &jv);
 std::optional<Json::Value> json_from_string(const std::string &s);
 std::optional<Json::Value> json_from_file(const std::string &f);
@@ -109,8 +113,8 @@ T cfg_get(const Json::Value &v, const std::string &path, const T &def) {
 
 template <typename T>
 T cfg_get_must(const Json::Value &v,
-                     const std::string &path,
-                     const T &def) {
+               const std::string &path,
+               const T &def) {
   T r = cfg_get(v, path, def);
   if constexpr (std::is_same_v<T, std::string>) {
     if (r.empty()) {

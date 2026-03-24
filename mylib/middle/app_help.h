@@ -16,13 +16,10 @@
 #include "event.h"
 #include "evhttp.h"
 
+#include "grpc_service_help.h"
+
 
 namespace miku {
-
-struct ServiceConfig {
-  std::string sname;
-  std::string saddr;
-};
 
 struct HttpServiceConfig {
   std::string host;

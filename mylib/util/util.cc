@@ -8,6 +8,7 @@
 #include <sys/un.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <iomanip>
 
 #include <sstream>
 #include <functional>
@@ -742,6 +743,82 @@ is_number(const std::string &s,
   }
 
   return true;
+}
+
+std::string
+url_encode(const std::string &value) {
+  std::ostringstream escaped;
+  escaped.fill('0');
+  escaped << std::hex;
+
+  for (char c : value) {
+    // Keep alphanumeric and other accepted characters intact
+    if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+      escaped << c;
+    } else {
+      // Any other character is percent-encoded
+      escaped << '%' << std::setw(2) << static_cast<uint32_t>(c);
+    }
+  }
+
+  return escaped.str();
+}
+
+std::string
+url_decode(const std::string &encoded) {
+  std::string decoded;
+  for (size_t i = 0; i < encoded.length(); ++i) {
+    if (encoded[i] == '%') {
+      // Convert the next two hexadecimal digits into a character
+      int numeric_value;
+      sscanf(encoded.substr(i + 1, 2).c_str(), "%x", &numeric_value);
+      decoded += static_cast<char>(numeric_value);
+      i += 2; // Skip ahead past the parsed escape sequence
+    } else if (encoded[i] == '+') {
+      decoded += ' ';
+    } else {
+      decoded += encoded[i];
+    }
+  }
+  return decoded;
+}
+
+std::map<std::string, std::string>
+parse_uri_query(const std::string &uri) {
+  std::map<std::string, std::string> params;
+  if (uri.empty()) {
+    return params;
+  }
+
+  size_t pos = uri.find('?');
+  std::string query;
+  if (pos == std::string::npos) {
+    query = uri;
+  } else {
+    query = uri.substr(pos + 1);
+  }
+
+  std::vector<std::string> pairs;
+  std::string pair;
+  std::stringstream ss(query);
+
+  // 按&分割参数对
+  while (std::getline(ss, pair, '&')) {
+    pairs.push_back(pair);
+  }
+
+
+  // 解析每个参数对
+  for (const std::string &param : pairs) {
+    size_t equalPos = param.find('=');
+    if (equalPos != std::string::npos) {
+      std::string key = param.substr(0, equalPos);
+      std::string value = param.substr(equalPos + 1);
+      params[key] = url_decode(value);
+    }
+  }
+
+  return params;
 }
 
 std::string

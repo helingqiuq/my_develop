@@ -109,7 +109,7 @@ Log::SetFilename(const std::string &filename) {
   }
 
   return lock_.serialization([&]()-> bool {
-      int64_t s = UpdateFileSize_(fd);
+      int64_t s = QueryFileSize_(fd);
       if (s < 0) {
         return false;
       }
@@ -169,7 +169,7 @@ Log::OpenFile_(const std::string &fname) const {
 }
 
 int64_t
-Log::UpdateFileSize_(int32_t fd) const {
+Log::QueryFileSize_(int32_t fd) const {
   if (fd == -1) {
     return -1;
   }
@@ -326,6 +326,7 @@ void Log::LogBase(const char *file,
     auto l = lock_.Lock();
     if (cur_file_size_ + wlen > max_file_size_) {
       MoveNextFile_();
+      cur_file_size_ = 0;
     }
 
     if (fd_file_ >= 0) {

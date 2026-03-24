@@ -1,4 +1,5 @@
-build --cxxopt="--std=c++17"
+build --cxxopt="--std=c++2a"
+build --cxxopt="-Wno-volatile"
 build --cxxopt="-Wall"
 build --copt="-Wall"
 build --copt="-O2"

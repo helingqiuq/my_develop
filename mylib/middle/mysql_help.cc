@@ -97,7 +97,8 @@ MysqlHandler::GetLastInsertId() const {
 }
 
 int32_t
-MysqlHandler::ExecuteQuery(const std::string &query) const {
+MysqlHandler::ExecuteQuery(const std::string &query,
+                           uint32_t *n_affected_rows) const {
   if (connection_ == nullptr) {
     err_no_ = -1;
     return err_no_;
@@ -118,10 +119,18 @@ MysqlHandler::ExecuteQuery(const std::string &query) const {
   if (result != nullptr) {
     mysql_free_result(result);
   }
+  if (n_affected_rows != nullptr) {
+    *n_affected_rows = mysql_affected_rows(connection_);
+  }
 
   err_no_ = 0;
   err_msg_ = "";
   return err_no_;
+}
+
+int32_t
+MysqlHandler::ExecuteQuery(const std::string &query) const {
+  return ExecuteQuery(query, nullptr);
 }
 
 std::shared_ptr<MysqlHandler::ResultHelp>
@@ -282,13 +291,14 @@ MysqlProxy::MysqlProxy(const MysqlHandler::MysqlHandlerConf &conf)
 }
 
 int32_t
-MysqlProxy::ExecuteQuery(const std::string &query) {
+MysqlProxy::ExecuteQuery(const std::string &query,
+                         uint32_t *n_affected_rows) {
   auto mysql = pool_.Get();
   if (mysql == nullptr) {
     return -1;
   }
 
-  int32_t ret = mysql->ExecuteQuery(query);
+  int32_t ret = mysql->ExecuteQuery(query, n_affected_rows);
   pool_.Put(mysql);
 
   return ret;

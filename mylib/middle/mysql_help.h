@@ -44,6 +44,8 @@ class MysqlHandler {
   ~MysqlHandler();
 
   int32_t ExecuteQuery(const std::string &query) const;
+  int32_t ExecuteQuery(const std::string &query,
+                       uint32_t *n_affected_rows) const;
   std::shared_ptr<ResultHelp> SelectData(const std::string &query) const;
   int64_t GetLastInsertId() const;
   std::string EscapeString(const std::string &raw) const;
@@ -160,7 +162,8 @@ class MysqlProxy {
   MysqlProxy(const MysqlHandler::MysqlHandlerConf &conf);
   ~MysqlProxy() = default;
 
-  int32_t ExecuteQuery(const std::string &query);
+  int32_t ExecuteQuery(const std::string &query,
+                       uint32_t *n_affected_rows = nullptr);
   std::shared_ptr<MysqlHandler::ResultHelp> SelectData(const std::string &query);
   MysqlProxy *operator->();
 
