@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
   const char *des_path = argv[2];
   const char *password = argv[3];
 
-  if (miku::create_unix_server(des_path)) {
+  if (miku::create_unix_lfd(des_path)) {
     int32_t fd[2] = {0};
     int32_t ret = socketpair(AF_LOCAL, SOCK_STREAM, 0, fd);
     if (ret != 0) {
